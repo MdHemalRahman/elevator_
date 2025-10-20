@@ -1,13 +1,22 @@
+import { useState } from "react";
 import { Check } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import CheckoutModal from "@/components/CheckoutModal";
 import heroImage from "@/assets/hero-elevator.jpg";
 import escalatorImage from "@/assets/escalator-modern.jpg";
 import smartMonitoring from "@/assets/smart-monitoring.jpg";
 
 const Products = () => {
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState("");
+
+  const handleBuyNow = (productName: string) => {
+    setSelectedProduct(productName);
+    setIsCheckoutOpen(true);
+  };
   const products = [
     {
       name: "enta100",
@@ -116,7 +125,7 @@ const Products = () => {
               </Card>
 
               <div className="flex gap-4">
-                <Button size="lg" onClick={() => window.open(`/checkout?product=${encodeURIComponent(product.name)}`, '_blank')}>Buy Now</Button>
+                <Button size="lg" onClick={() => handleBuyNow(product.name)}>Buy Now</Button>
               </div>
 
               {index < products.length - 1 && (
@@ -128,6 +137,12 @@ const Products = () => {
       </section>
 
       <Footer />
+      
+      <CheckoutModal 
+        isOpen={isCheckoutOpen}
+        onClose={() => setIsCheckoutOpen(false)}
+        selectedProduct={selectedProduct}
+      />
     </div>
   );
 };
