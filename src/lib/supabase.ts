@@ -17,3 +17,13 @@ export interface Order {
   created_at?: string;
   status: 'pending' | 'confirmed' | 'cancelled';
 }
+
+export interface Admin {
+  id?: string;
+  username: string;
+  password_hash?: string;
+  role: 'super_admin' | 'admin_editor' | 'admin_viewer';
+  created_by?: string;
+  created_at?: string;
+  last_login?: string;
+}

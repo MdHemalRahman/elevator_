@@ -4,6 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { supabase, Order } from "@/lib/supabase";
+import { useAuth } from "@/contexts/AuthContext";
+import { Shield } from "lucide-react";
 
 
 
@@ -31,15 +33,15 @@ const AdminDashboard = () => {
     return amount.toLocaleString() + " BDT";
   };
 
+  const { admin, logout } = useAuth();
+
   useEffect(() => {
-    const isLoggedIn = localStorage.getItem("adminLoggedIn");
-    if (!isLoggedIn) {
+    if (!admin) {
       navigate("/admin-login");
       return;
     }
-
     loadOrders();
-  }, [navigate]);
+  }, [admin, navigate]);
 
   const loadOrders = async () => {
     try {
@@ -62,11 +64,20 @@ const AdminDashboard = () => {
 
 
   const handleLogout = () => {
-    localStorage.removeItem("adminLoggedIn");
+    logout();
     navigate("/admin-login");
   };
 
   const handleCancelOrder = async (orderId: string) => {
+    if (admin?.role === 'admin_viewer') {
+      toast({
+        title: "Access Denied",
+        description: "You don't have permission to modify orders.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (window.confirm("Are you sure you want to cancel this order?")) {
       try {
         const { error } = await supabase
@@ -92,6 +103,15 @@ const AdminDashboard = () => {
   };
 
   const handleConfirmOrder = async (orderId: string) => {
+    if (admin?.role === 'admin_viewer') {
+      toast({
+        title: "Access Denied",
+        description: "You don't have permission to modify orders.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       const { error } = await supabase
         .from('orders')
@@ -149,8 +169,19 @@ Elevate Mobility Team
     <div className="min-h-screen bg-secondary">
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+          <div>
+            <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+            <p className="text-muted-foreground flex items-center gap-2">
+              <Shield className="h-4 w-4" />
+              {admin?.username} - {admin?.role === 'super_admin' ? 'Super Admin' : admin?.role === 'admin_editor' ? 'Admin Editor' : 'Admin Viewer'}
+            </p>
+          </div>
           <div className="flex gap-2">
+            {admin?.role === 'super_admin' && (
+              <Button onClick={() => navigate('/super-admin')} variant="secondary">
+                Super Admin Panel
+              </Button>
+            )}
             <Button onClick={() => window.open('/admin-database', '_blank')} variant="secondary">
               View Database
             </Button>
@@ -202,6 +233,7 @@ Elevate Mobility Team
                             onClick={() => handleConfirmOrder(order.id)}
                             variant="default"
                             size="sm"
+                            disabled={admin?.role === 'admin_viewer'}
                           >
                             Confirm Order
                           </Button>
@@ -210,6 +242,7 @@ Elevate Mobility Team
                           onClick={() => handleCancelOrder(order.id)}
                           variant="destructive"
                           size="sm"
+                          disabled={admin?.role === 'admin_viewer'}
                         >
                           Cancel Order
                         </Button>
