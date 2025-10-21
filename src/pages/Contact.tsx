@@ -49,7 +49,7 @@ const Contact = () => {
     {
       icon: Mail,
       title: "Email",
-      details: ["hemal.stu2017@juniv.edu", "sales@elevatemobility.com"],
+      details: ["rhemal43@gmail.com", "sales@elevatemobility.com"],
     },
     {
       icon: MapPin,

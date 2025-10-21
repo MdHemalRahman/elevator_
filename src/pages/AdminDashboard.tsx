@@ -87,10 +87,15 @@ const AdminDashboard = () => {
 
         if (error) throw error;
 
+        const order = orders.find(o => o.id === orderId);
+        if (order) {
+          await sendCancellationEmail(order);
+        }
+
         await loadOrders();
         toast({
           title: "Order Cancelled",
-          description: "The order has been cancelled.",
+          description: "Cancellation email sent to customer.",
         });
       } catch (error) {
         toast({
@@ -122,7 +127,7 @@ const AdminDashboard = () => {
 
       const order = orders.find(o => o.id === orderId);
       if (order) {
-        sendConfirmationEmail(order);
+        await sendConfirmationEmail(order);
       }
 
       await loadOrders();
@@ -139,30 +144,36 @@ const AdminDashboard = () => {
     }
   };
 
-  const sendConfirmationEmail = (order: Order) => {
-    // Simulate email sending (in real app, this would call an email service)
-    console.log(`
-=== AUTOMATED CONFIRMATION EMAIL ===
+  const sendConfirmationEmail = async (order: Order) => {
+    try {
+      const { emailAPI } = await import('@/lib/emailAPI');
+      await emailAPI.sendOrderConfirmation(order);
+    } catch (error) {
+      console.error('Failed to send confirmation email:', error);
+      // Fallback to console log
+      console.log(`
+=== ORDER CONFIRMATION EMAIL ===
 To: ${order.email}
-Subject: Order Confirmation - ${order.product}
+Subject: Order Confirmed - ${order.product}
+Status: Confirmed
+===============================`);
+    }
+  };
 
-Dear ${order.name},
-
-Your order has been confirmed!
-
-Order Details:
-- Product: ${order.product}
-- Quantity: ${order.quantity || 1}
-- Order ID: ${order.id}
-- Date: ${order.date}
-
-We will contact you soon at ${order.phone} for delivery arrangements.
-
-Thank you for choosing Elevate Mobility!
-
-Best regards,
-Elevate Mobility Team
-=====================================`);
+  const sendCancellationEmail = async (order: Order) => {
+    try {
+      const { emailAPI } = await import('@/lib/emailAPI');
+      await emailAPI.sendOrderCancellation(order);
+    } catch (error) {
+      console.error('Failed to send cancellation email:', error);
+      // Fallback to console log
+      console.log(`
+=== ORDER CANCELLATION EMAIL ===
+To: ${order.email}
+Subject: Order Cancelled - ${order.product}
+Status: Cancelled
+===============================`);
+    }
   };
 
   return (
@@ -219,7 +230,7 @@ Elevate Mobility Team
                         </div>
                         <div>
                           <p><strong>Address:</strong> {order.address}</p>
-                          <p><strong>Payment:</strong> {order.paymentMethod}</p>
+                          <p><strong>Payment:</strong> {order.payment_method}</p>
                           <p><strong>Date:</strong> {new Date(order.created_at || '').toLocaleDateString()}</p>
                           <p><strong>Status:</strong> <span className={`font-medium ${
                             order.status === 'confirmed' ? 'text-green-600' : 
