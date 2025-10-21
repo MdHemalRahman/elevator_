@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { X } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -22,42 +23,49 @@ const CheckoutModal = ({ isOpen, onClose, selectedProduct }: CheckoutModalProps)
     quantity: "1",
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     const order = {
-      id: Date.now().toString(),
-      ...formData,
+      name: formData.name,
+      email: formData.email,
+      phone: formData.phone,
+      address: formData.address,
+      payment_method: formData.paymentMethod,
       product: selectedProduct,
       quantity: parseInt(formData.quantity),
-      date: new Date().toLocaleString(),
       status: 'pending' as const,
     };
     
-    const existingOrders = JSON.parse(localStorage.getItem("orders") || "[]");
-    existingOrders.push(order);
-    localStorage.setItem("orders", JSON.stringify(existingOrders));
-    
-    // Save to permanent database
-    const ordersDatabase = JSON.parse(localStorage.getItem("ordersDatabase") || "[]");
-    ordersDatabase.push(order);
-    localStorage.setItem("ordersDatabase", JSON.stringify(ordersDatabase));
-    
-    toast({
-      title: "Order Placed!",
-      description: "Thank you for your purchase. We'll contact you soon.",
-    });
-    
-    setFormData({
-      name: "",
-      email: "",
-      phone: "",
-      address: "",
-      paymentMethod: "",
-      quantity: "1",
-    });
-    
-    onClose();
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .insert([order]);
+
+      if (error) throw error;
+
+      toast({
+        title: "Order Placed!",
+        description: "Thank you for your purchase. We'll contact you soon.",
+      });
+      
+      setFormData({
+        name: "",
+        email: "",
+        phone: "",
+        address: "",
+        paymentMethod: "",
+        quantity: "1",
+      });
+      
+      onClose();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to place order. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {

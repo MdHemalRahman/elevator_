@@ -2,19 +2,9 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
+import { supabase, Order } from "@/lib/supabase";
 
-interface Order {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  address: string;
-  paymentMethod: string;
-  product: string;
-  quantity: number;
-  date: string;
-  status: 'pending' | 'confirmed' | 'cancelled';
-}
+
 
 const AdminDatabase = () => {
   const navigate = useNavigate();
@@ -30,13 +20,17 @@ const AdminDatabase = () => {
     loadAllOrders();
   }, [navigate]);
 
-  const loadAllOrders = () => {
-    const ordersDatabase = localStorage.getItem("ordersDatabase");
-    if (ordersDatabase) {
-      const orders = JSON.parse(ordersDatabase);
-      // Sort by date (newest first)
-      orders.sort((a: Order, b: Order) => new Date(b.date).getTime() - new Date(a.date).getTime());
-      setAllOrders(orders);
+  const loadAllOrders = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('orders')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setAllOrders(data || []);
+    } catch (error) {
+      console.error('Failed to load orders:', error);
     }
   };
 
@@ -134,8 +128,8 @@ const AdminDatabase = () => {
                         </div>
                         <div>
                           <p><strong>Address:</strong> {order.address}</p>
-                          <p><strong>Payment:</strong> {order.paymentMethod}</p>
-                          <p><strong>Date:</strong> {order.date}</p>
+                          <p><strong>Payment:</strong> {order.payment_method}</p>
+                          <p><strong>Date:</strong> {new Date(order.created_at || '').toLocaleDateString()}</p>
                           <p><strong>Status:</strong> <span className={`font-medium ${
                             order.status === 'confirmed' ? 'text-green-600' : 
                             order.status === 'cancelled' ? 'text-red-600' : 'text-yellow-600'

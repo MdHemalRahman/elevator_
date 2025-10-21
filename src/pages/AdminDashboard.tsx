@@ -3,19 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
+import { supabase, Order } from "@/lib/supabase";
 
-interface Order {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  address: string;
-  paymentMethod: string;
-  product: string;
-  quantity: number;
-  date: string;
-  status: 'pending' | 'confirmed' | 'cancelled';
-}
+
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -51,71 +41,82 @@ const AdminDashboard = () => {
     loadOrders();
   }, [navigate]);
 
-  const loadOrders = () => {
-    const activeOrders = localStorage.getItem("orders");
-    if (activeOrders) {
-      setOrders(JSON.parse(activeOrders));
+  const loadOrders = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('orders')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setOrders(data || []);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to load orders.",
+        variant: "destructive",
+      });
     }
   };
 
-  const saveToDatabase = (order: Order) => {
-    // Save to permanent database (all orders history)
-    const allOrdersHistory = JSON.parse(localStorage.getItem("ordersDatabase") || "[]");
-    const existingIndex = allOrdersHistory.findIndex((o: Order) => o.id === order.id);
-    
-    if (existingIndex >= 0) {
-      allOrdersHistory[existingIndex] = order;
-    } else {
-      allOrdersHistory.push(order);
-    }
-    
-    localStorage.setItem("ordersDatabase", JSON.stringify(allOrdersHistory));
-  };
+
 
   const handleLogout = () => {
     localStorage.removeItem("adminLoggedIn");
     navigate("/admin-login");
   };
 
-  const handleCancelOrder = (orderId: string) => {
+  const handleCancelOrder = async (orderId: string) => {
     if (window.confirm("Are you sure you want to cancel this order?")) {
-      const orderToCancel = orders.find(order => order.id === orderId);
-      if (orderToCancel) {
-        // Update order status to cancelled and save to database
-        const cancelledOrder = { ...orderToCancel, status: 'cancelled' as const };
-        saveToDatabase(cancelledOrder);
-        
-        // Remove from active orders
-        const updatedOrders = orders.filter(order => order.id !== orderId);
-        setOrders(updatedOrders);
-        localStorage.setItem("orders", JSON.stringify(updatedOrders));
-        
+      try {
+        const { error } = await supabase
+          .from('orders')
+          .update({ status: 'cancelled' })
+          .eq('id', orderId);
+
+        if (error) throw error;
+
+        await loadOrders();
         toast({
           title: "Order Cancelled",
-          description: "The order has been cancelled and archived.",
+          description: "The order has been cancelled.",
+        });
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to cancel order.",
+          variant: "destructive",
         });
       }
     }
   };
 
-  const handleConfirmOrder = (orderId: string) => {
-    const updatedOrders = orders.map(order => {
-      if (order.id === orderId) {
-        // Simulate sending confirmation email
+  const handleConfirmOrder = async (orderId: string) => {
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ status: 'confirmed' })
+        .eq('id', orderId);
+
+      if (error) throw error;
+
+      const order = orders.find(o => o.id === orderId);
+      if (order) {
         sendConfirmationEmail(order);
-        const confirmedOrder = { ...order, status: 'confirmed' as const };
-        // Save to database
-        saveToDatabase(confirmedOrder);
-        return confirmedOrder;
       }
-      return order;
-    });
-    setOrders(updatedOrders);
-    localStorage.setItem("orders", JSON.stringify(updatedOrders));
-    toast({
-      title: "Order Confirmed",
-      description: "Confirmation email sent to customer.",
-    });
+
+      await loadOrders();
+      toast({
+        title: "Order Confirmed",
+        description: "Confirmation email sent to customer.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to confirm order.",
+        variant: "destructive",
+      });
+    }
   };
 
   const sendConfirmationEmail = (order: Order) => {
@@ -188,7 +189,7 @@ Elevate Mobility Team
                         <div>
                           <p><strong>Address:</strong> {order.address}</p>
                           <p><strong>Payment:</strong> {order.paymentMethod}</p>
-                          <p><strong>Date:</strong> {order.date}</p>
+                          <p><strong>Date:</strong> {new Date(order.created_at || '').toLocaleDateString()}</p>
                           <p><strong>Status:</strong> <span className={`font-medium ${
                             order.status === 'confirmed' ? 'text-green-600' : 
                             order.status === 'cancelled' ? 'text-red-600' : 'text-yellow-600'
